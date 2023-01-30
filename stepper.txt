@@ -1,0 +1,19 @@
+42BYGHM809
+
+Step accuracy: ±5%
+Ambient temperature range: 20°C ~ 50°C
+Insulation resistance: 100MΩ Min.50V DC
+Dielectric strength: 500V AC for 1 minute
+Step angle: 0.9°
+400 steps / rev
+Voltage rating: 2.7 V
+Current rating: 1.68 A
+Resistance: 1.6 Ω per coil
+Inductance: 3.5 mH per coil
+Temperature rise tolerance: 80°C
+Holding torque: 4200 g⋅cm
+Detent torque: 260 g⋅cm
+Number of leads: 4
+Motor length : 4.8 cm
+Nema 17 form factor
+Weight:  340 g
