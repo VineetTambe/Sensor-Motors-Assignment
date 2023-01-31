@@ -1,22 +1,16 @@
-#include "RotaryEncoder.h"
-int val = 0;
-RotaryEncoder encoder(A0, A2, 5, 6, 3000);
+#define ENCODER_PIN 2
+volatile long encoder_val = 0;
+void encoderISR() {
+  encoder_val++;
+}
+
 void setup()
 {
-  Serial.begin(57600);
+  attachInterrupt(digitalPinToInterrupt(ENCODER_PIN), encoderISR, RISING);
+  Serial.begin(9600);
 }
 void loop()
 {
-  int enc = encoder.readEncoder();
-  int changevalue = 1;
-  if (enc != 0) {
-    val = val + (enc);
-    //    val = min(val,4095);
-    //    val = max(val,0);
-//    val = (val > 360) ? 0 : val;
-//    val = (val < -360) ? 0 : val;
-
-    Serial.println(val);
-  }
-  delayMicroseconds(5);
+  Serial.println(encoder_val);
+  delay(50);
 }
