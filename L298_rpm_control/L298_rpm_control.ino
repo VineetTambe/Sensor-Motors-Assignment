@@ -2,7 +2,7 @@
 
 #define DIR_PIN1 8
 #define DIR_PIN2 7
-#define MOTOR_ENABLE_PIN 5
+#define MOTOR_ENABLE_PIN 6
 #define CLICKS_PER_ROTATION 98
 #define LOOP_DT 50 // micro seconds
 
@@ -33,7 +33,7 @@ void actuate_motor( int dir , int pwm , int dir_pin1, int dir_pin2, int en_pin) 
     case -1:
       digitalWrite(dir_pin1, HIGH);
       digitalWrite(dir_pin2, LOW);
-      analogWrite(en_pin, pwm);
+        
       //      Serial.println("moving backwards");
       break;
     case 0:

@@ -1,6 +1,6 @@
 #include <Servo.h> 
 // Declare the Servo pin 
-#define servoPin 3 
+#define servoPin 9
 // Create a servo object 
 Servo Servo1; 
 void setup() { 
@@ -20,9 +20,6 @@ void loop(){
       Servo1.write(val); 
       }
     
-    
-
-
     Serial.println(val);
   }
    // Make servo go to 0 degrees 

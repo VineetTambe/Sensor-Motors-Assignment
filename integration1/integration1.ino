@@ -2,8 +2,11 @@
 #include <AccelStepper.h>
 
 #define DEBUG false
-#define POTENTIOMETER_PIN A0
+
 #define SHARP_IR_PIN A1 // Sharp IR GP2Y0A41SK0F (10-80cm, analog)
+#define LIGHT_SENSOR_PIN A2 //Ambient light sensor reading 
+#define POTENTIOMETER_PIN A4
+
 #define ULTRASONIC_TRIGGER_PIN 4
 #define ULTRASONIC_ECHO_PIN 5
 #define SERVO_PIN 3
@@ -12,7 +15,6 @@
 #define STEPPER_STEP_PIN 11 // 3
 #define MOTOR_INTERFACE_TYPE 1
 #define DEFAULT_STEPPER_SPEED 400
-#define LIGHT_SENSOR_PIN A3 //Ambient light sensor reading 
 // DC motor params 
 #define ENCODER_PIN 2
 #define DIR_PIN1 8

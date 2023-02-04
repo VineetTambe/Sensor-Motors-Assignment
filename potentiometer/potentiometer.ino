@@ -6,7 +6,7 @@
 #define BUFF_SIZE 4
 #endif
 
-#define POTENTIOMETER_PIN A0
+#define POTENTIOMETER_PIN A4
 
 uint8_t arr[BUFF_SIZE];
 bool hasRead = false;
@@ -35,7 +35,7 @@ void loop() {
 //    Serial.flush();
 //  }
   
-  Serial.write(percentage);
+  Serial.println(percentage);
   delay(50);
 //  Serial.println(percentage);
 }

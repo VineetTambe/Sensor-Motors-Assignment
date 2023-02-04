@@ -7,6 +7,23 @@
 #define LOOP_DT 50 // micro seconds
 volatile long encoder_val = 0;
 
+// position control errors
+int target = 0;
+int dir = 0;
+int prev_error = 0;
+int error = 0 ;
+int d_error = 0;
+int _stop = 1;
+
+float kp_pos = 2;
+float kd_pos = 0.00001;
+float ki_pos = 0.000001;
+int pwm_out = 0;
+int errSum = 0;
+int prev_encoder_val = 0;
+bool start_dc_motor_position_control;
+
+
 void encoderISR() {
   encoder_val++;
 }
@@ -43,7 +60,6 @@ void setup() {
 
   Serial.begin(9600);
 }
-
 
 void loop() {
   // put your main code here, to run repeatedly:
