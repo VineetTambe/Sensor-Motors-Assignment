@@ -33,8 +33,8 @@ void actuate_motor( int dir , int pwm , int dir_pin1, int dir_pin2, int en_pin) 
     case -1:
       digitalWrite(dir_pin1, HIGH);
       digitalWrite(dir_pin2, LOW);
-        
-      //      Serial.println("moving backwards");
+      analogWrite(en_pin, pwm);
+//            Serial.println("moving backwards");
       break;
     case 0:
       digitalWrite(dir_pin1, LOW);
@@ -45,7 +45,7 @@ void actuate_motor( int dir , int pwm , int dir_pin1, int dir_pin2, int en_pin) 
       digitalWrite(dir_pin1, LOW);
       digitalWrite(dir_pin2, HIGH);
       analogWrite(en_pin, pwm);
-      //      Serial.println("moving forwards");
+//            Serial.println("moving forwards");
       break;
   }
 }
@@ -76,6 +76,10 @@ void loop() {
     dir = (target_rpm <= 0) ? 1 : -1;
     target_rpm = abs(target_rpm);
 
+
+    Serial.print("\nSetting stop = ");
+    Serial.println(_stop);
+
     Serial.print("\nSetting dir = ");
     Serial.println(dir);
 
@@ -84,28 +88,46 @@ void loop() {
 
   }
 
+  if (_stop == 0) {
+    pwm_out_vel = 0;
+    actuate_motor(_stop, pwm_out_vel, DIR_PIN1, DIR_PIN2, MOTOR_ENABLE_PIN);
+    return;
+  }
+  //  Serial.println
   motor_rpm = (encoder_val - prev_encoder_val) / CLICKS_PER_ROTATION;
   motor_rpm = motor_rpm * 1000 * 60 / LOOP_DT;
 
   prev_encoder_val = encoder_val;
   // simple pid calculations for velocity control
   error_vel = target_rpm - motor_rpm;
-
-  if (_stop) {
-
-    if (abs(error_vel) > 5) {
-      d_error_vel = (prev_error_vel - error_vel) / LOOP_DT;
-      errSum_vel += error_vel * LOOP_DT;
-      int incremental_pwm = (int) kp_vel * error_vel + kd_vel * d_error_vel + ki_vel * errSum_vel;
-
-      pwm_out_vel += incremental_pwm;
-      prev_error_vel = error_vel;
-    }
-    actuate_motor(dir, pwm_out_vel, DIR_PIN1, DIR_PIN2, MOTOR_ENABLE_PIN);
-  } else {
-    pwm_out_vel = 0;
-    actuate_motor(_stop, pwm_out_vel, DIR_PIN1, DIR_PIN2, MOTOR_ENABLE_PIN);
+  if (abs(error_vel) > 5) {
+    d_error_vel = (prev_error_vel - error_vel) / LOOP_DT;
+    errSum_vel += error_vel * LOOP_DT;
+    int incremental_pwm = (int) kp_vel * error_vel + kd_vel * d_error_vel + ki_vel * errSum_vel;
+//    dir = (error_vel > 0) ? 1 : -1 ;
+    pwm_out_vel += incremental_pwm;
+    prev_error_vel = error_vel;
   }
+  
+  actuate_motor(dir, pwm_out_vel, DIR_PIN1, DIR_PIN2, MOTOR_ENABLE_PIN);
+
+
+  //
+  //  if (_stop) {
+  //
+  //    if (abs(error_vel) > 5) {
+  //      d_error_vel = (prev_error_vel - error_vel) / LOOP_DT;
+  //      errSum_vel += error_vel * LOOP_DT;
+  //      int incremental_pwm = (int) kp_vel * error_vel + kd_vel * d_error_vel + ki_vel * errSum_vel;
+  //
+  //      pwm_out_vel += incremental_pwm;
+  //      prev_error_vel = error_vel;
+  //    }
+  //    actuate_motor(dir, pwm_out_vel, DIR_PIN1, DIR_PIN2, MOTOR_ENABLE_PIN);
+  //  } else {
+  //    pwm_out_vel = 0;
+  //    actuate_motor(_stop, pwm_out_vel, DIR_PIN1, DIR_PIN2, MOTOR_ENABLE_PIN);
+  //  }
 
   Serial.print("\n Error = \t");
   Serial.print(error_vel);

@@ -1,4 +1,4 @@
-// Sharp IR GP2Y0A41SK0F Distance Test
+  // Sharp IR GP2Y0A41SK0F Distance Test
 // http://tinkcore.com/sharp-ir-gp2y0a41-skf/
 
 #define sensor A0 // Sharp IR GP2Y0A41SK0F (4-30cm, analog)

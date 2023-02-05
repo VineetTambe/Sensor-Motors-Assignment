@@ -10,9 +10,6 @@
 
 #include <AccelStepper.h>
 
-// Define a stepper and the pins it will use
-//AccelStepper stepper; // Defaults to AccelStepper::FULL4WIRE (4 pins) on 2, 3, 4, 5
-
 #define STEPPER_DIR_PIN 12 // 2
 #define STEPPER_STEP_PIN 11 // 3
 #define MOTOR_INTERFACE_TYPE 1

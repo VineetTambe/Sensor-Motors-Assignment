@@ -84,13 +84,14 @@ int error = 0 ;
 int d_error = 0;
 int _stop = 1;
 
-float kp_pos = 2;
-float kd_pos = 0.00001;
-float ki_pos = 0.000001;
+float kp_pos = 5.25;
+float kd_pos = 0.00000001;
+float ki_pos = 0.00000001;
 int pwm_out = 0;
 int errSum = 0;
 int prev_encoder_val = 0;
 bool start_dc_motor_position_control;
+int feedForwards = 80;
 
 //velocity control
 int target_rpm = 0;
@@ -265,6 +266,8 @@ void triggerActions(uint8_t rb[READ_BUFF_SIZE]) {
       dir = (int)rb[3];
       dir = (dir == 1) ? 1 : -1;
       target = (int)rb[4];
+      target = (int) (target / 5.0);
+
       start_dc_motor_position_control = true;
       start_dc_motor_velocity_control = false;
       clearControlVarsPos();
@@ -297,11 +300,10 @@ void positionPID() {
     // simple pid calculations for position control
     error = target - encoder_val;
 
-    if (abs(error) > 10) {
+    if (error > 5) {
       d_error = (prev_error - error) / LOOP_DT;
       errSum += error * LOOP_DT;
-
-      pwm_out = (int) kp_pos * error + kd_pos * d_error + ki_pos * errSum;
+      pwm_out = (int) feedForwards +  kp_pos * error + kd_pos * d_error + ki_pos * errSum;
       pwm_out = abs(pwm_out);
       pwm_out = max(0, min(pwm_out, 255));
       prev_error = error;
