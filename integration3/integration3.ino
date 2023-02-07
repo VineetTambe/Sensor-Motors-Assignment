@@ -340,7 +340,7 @@ void velocityPID() {
     // simple pid calculations for velocity control
     error_vel = target_rpm - motor_rpm;
     if (abs(error_vel) > 5) {
-      d_error_vel = (prev_error_vel - error_vel) / LOOP_DT;
+      d_error_vel = (error_vel - prev_error_vel) / LOOP_DT;
       errSum_vel += error_vel * LOOP_DT;
       int incremental_pwm = (int) kp_vel * error_vel + kd_vel * d_error_vel + ki_vel * errSum_vel;
 
