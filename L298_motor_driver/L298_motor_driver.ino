@@ -90,7 +90,7 @@ void loop() {
     error = target - encoder_val;
 
     if (error > 5) {
-      d_error = (prev_error - error) / LOOP_DT;
+      d_error = (error - prev_error) / LOOP_DT;
       errSum += error * LOOP_DT;
 
 //      pwm_out = (int) 100 + kp_pos * error;
