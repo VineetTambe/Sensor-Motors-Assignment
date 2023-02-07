@@ -36,8 +36,6 @@
 #define CLICKS_PER_ROTATION 98
 #define LOOP_DT 50 // micro seconds
 
-#define MOVING_AVERAGE_FILTER_SIZE 10
-
 #if DEBUG
 #define READ_BUFF_SIZE 8
 #define WRITE_BUFF_SIZE 6
@@ -76,6 +74,7 @@ bool hasWritten = false;
 volatile long encoder_val = 0;
 volatile unsigned long buttonTimer = 0 ;
 uint8_t filterd_IR = 0;
+float ambient_light_filter = 0.0;
 
 // position control errors
 int target = 0;
@@ -105,12 +104,11 @@ float kd_vel = 0.000001;
 float ki_vel = 0.000;
 int pwm_out_vel = 0;
 float errSum_vel = 0;
-float motor_rpm = 0;
+float motor_rpm = 30;
 bool start_dc_motor_velocity_control;
 bool control_mode = true;
 
 float moving_average_ultrasonic;
-//float moving_average_accumulator[MOVING_AVERAGE_FILTER_SIZE];
 //uint8_t ma_counter = 0;
 
 // Create a servo object
@@ -154,11 +152,13 @@ void populateWriteBuff(uint8_t (&wb)[WRITE_BUFF_SIZE]) {
   wb[1] = getIRData();
   wb[2] = ultrasonic_distance;
   wb[3] = getLightSensorData();
-  wb[4] = (uint8_t)motor_rpm;
+  //  wb[4] = (uint8_t)motor_rpm;
 }
 
 int getLightSensorData() {
-  return ((int)analogRead(LIGHT_SENSOR_PIN) > 13) ? 255 : 0;
+  float reading = analogRead(LIGHT_SENSOR_PIN);
+  ambient_light_filter = 0.9 * ambient_light_filter + 0.1 * reading;
+  return ((int) ambient_light_filter > 13) ? 255 : 0;
 }
 
 int getPotData() {
@@ -335,7 +335,7 @@ void velocityPID() {
   if (start_dc_motor_velocity_control) {
     motor_rpm = (encoder_val - prev_encoder_val) / CLICKS_PER_ROTATION;
     motor_rpm = motor_rpm * 1000 * 60 / LOOP_DT;
-
+    write_buff[4] = (uint8_t)motor_rpm;
     prev_encoder_val = encoder_val;
     // simple pid calculations for velocity control
     error_vel = target_rpm - motor_rpm;
@@ -366,6 +366,8 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(CONTROL_BUTTON), buttonISR, RISING);
   servo.attach(SERVO_PIN);
   stepper.setMaxSpeed(1000);
+
+  digitalWrite(BUILT_IN_LED, HIGH);
 
   stopAndResetAllActuators();
   Serial.begin(9600);

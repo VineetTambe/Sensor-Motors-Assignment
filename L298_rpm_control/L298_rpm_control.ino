@@ -129,11 +129,15 @@ void loop() {
   //    actuate_motor(_stop, pwm_out_vel, DIR_PIN1, DIR_PIN2, MOTOR_ENABLE_PIN);
   //  }
 
-  Serial.print("\n Error = \t");
-  Serial.print(error_vel);
-
-  Serial.print(" PWM = \t");
-  Serial.print(pwm_out_vel);
+  Serial.print("\n motor_rpm = \t");
+  Serial.print((uint8_t) motor_rpm);
+//
+//
+//  Serial.print("\n Error = \t");
+//  Serial.print(error_vel);
+//
+//  Serial.print(" PWM = \t");
+//  Serial.print(pwm_out_vel);
 
   delayMicroseconds(LOOP_DT);
 }
