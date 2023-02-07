@@ -104,7 +104,7 @@ float kd_vel = 0.000001;
 float ki_vel = 0.000;
 int pwm_out_vel = 0;
 float errSum_vel = 0;
-float motor_rpm = 30;
+float motor_rpm = 0;
 bool start_dc_motor_velocity_control;
 bool control_mode = true;
 
@@ -145,14 +145,6 @@ uint8_t getUltrasonicData() {
   distance = min (60, distance);
   moving_average_ultrasonic = (0.9) * moving_average_ultrasonic + 0.1 * distance;
   return (uint8_t) map(moving_average_ultrasonic, 0, 60, 0, 255);
-}
-
-void populateWriteBuff(uint8_t (&wb)[WRITE_BUFF_SIZE]) {
-  wb[0] = map(getPotData(), 0, 1023, 0, 255);
-  wb[1] = getIRData();
-  wb[2] = ultrasonic_distance;
-  wb[3] = getLightSensorData();
-  //  wb[4] = (uint8_t)motor_rpm;
 }
 
 int getLightSensorData() {
@@ -333,10 +325,11 @@ void positionPID() {
 
 void velocityPID() {
   if (start_dc_motor_velocity_control) {
-    motor_rpm = (encoder_val - prev_encoder_val) / CLICKS_PER_ROTATION;
-    motor_rpm = motor_rpm * 1000 * 60 / LOOP_DT;
-    write_buff[4] = (uint8_t)motor_rpm;
+    motor_rpm = (1.0) * (encoder_val - prev_encoder_val) / 1.0 * CLICKS_PER_ROTATION;
+    motor_rpm = motor_rpm * 1000.0 * 60.0 / 1.0 * LOOP_DT;
+
     prev_encoder_val = encoder_val;
+
     // simple pid calculations for velocity control
     error_vel = target_rpm - motor_rpm;
     if (abs(error_vel) > 5) {
@@ -351,6 +344,15 @@ void velocityPID() {
   }
 }
 
+
+void populateWriteBuff(uint8_t (&wb)[WRITE_BUFF_SIZE]) {
+  wb[0] = map(getPotData(), 0, 1023, 0, 255);
+  wb[1] = getIRData();
+  wb[2] = ultrasonic_distance;
+  wb[3] = getLightSensorData();
+  wb[4] = map((int) motor_rpm, 0, 40, 0, 255);
+}
+
 void setup() {
   pinMode(POTENTIOMETER_PIN, INPUT);
   pinMode(SHARP_IR_PIN, INPUT);
@@ -362,8 +364,10 @@ void setup() {
   pinMode(DIR_PIN1, OUTPUT);
   pinMode(DIR_PIN2, OUTPUT);
   pinMode(MOTOR_ENABLE_PIN, OUTPUT);
+  
   attachInterrupt(digitalPinToInterrupt(ENCODER_PIN), encoderISR, RISING);
   attachInterrupt(digitalPinToInterrupt(CONTROL_BUTTON), buttonISR, RISING);
+  
   servo.attach(SERVO_PIN);
   stepper.setMaxSpeed(1000);
 
@@ -386,7 +390,6 @@ void loop() {
         for (uint8_t i = 0 ; i < WRITE_BUFF_SIZE; i++) {
           Serial.write(write_buff[i]);
         }
-        // delay(50);
       } else if ((char)control_var[0] == 'w') {
         Serial.flush();
         delay(10);
@@ -394,11 +397,8 @@ void loop() {
         triggerActions(read_buff);
       }
     }
-    //    start_dc_motor_position_control = false;
-    //    start_dc_motor_velocity_control = false;
     positionPID();
     velocityPID();
-
   } else {
     setServoFromPot();
     setStepperFromIR();
