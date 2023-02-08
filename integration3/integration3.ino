@@ -13,28 +13,25 @@
 #define ULTRASONIC_ECHO_PIN 5
 
 // DC motor params
-
 #define MOTOR_ENABLE_PIN 6
 #define DIR_PIN2 7
 #define DIR_PIN1 8
 
+#define CLICKS_PER_ROTATION 98
+#define LOOP_DT 50 // micro seconds
+
+// Servo motor params
 #define SERVO_PIN 9
 
+// Stepper motor params
 #define STEPPER_STEP_PIN 11
 #define STEPPER_DIR_PIN 12
-
 #define MOTOR_INTERFACE_TYPE 1
 #define DEFAULT_STEPPER_SPEED 400
 
-//#define LIGHT_SENSOR_PIN A3 //Ambient light sensor reading
-
+// Push Button
 #define BUTTON_DEBOUNCE_TIME 200  // 200 ms
 #define BUILT_IN_LED 13
-
-
-
-#define CLICKS_PER_ROTATION 98
-#define LOOP_DT 50 // micro seconds
 
 #if DEBUG
 #define READ_BUFF_SIZE 8
@@ -50,8 +47,7 @@
    2. SharpIR sensor reading with mapping (0-255) to (10cm-80cm)
    3. Ultrasonic sensor
    4. Slot Sensor 0 or 255 to indicate ON or OFF
-   5. servo angle TODO
-   6. Motor rpm TODO
+   5. Motor rpm
 
    Read Buffer  is a byte buffer of size seven used to control the actuators:
    0. which actuator to control: 0 - STOP & RESET everything, 1 - stepper, 2 - servo, 3 - dc motor-position, 4 - dc motor-velocity
@@ -73,8 +69,9 @@ bool hasRead = false;
 bool hasWritten = false;
 volatile long encoder_val = 0;
 volatile unsigned long buttonTimer = 0 ;
-uint8_t filterd_IR = 0;
-float ambient_light_filter = 0.0;
+uint8_t exponential_smoothing_filter_IR = 0;
+float exponential_smoothing_filter_ambient_light = 0.0;
+float exponential_smoothing_filter_ultrasonic;
 
 // position control errors
 int target = 0;
@@ -105,11 +102,9 @@ float ki_vel = 0.000;
 int pwm_out_vel = 0;
 float errSum_vel = 0;
 float motor_rpm = 0;
+float motor_rpm_write = 0;
 bool start_dc_motor_velocity_control;
 bool control_mode = true;
-
-float moving_average_ultrasonic;
-//uint8_t ma_counter = 0;
 
 // Create a servo object
 Servo servo;
@@ -119,7 +114,9 @@ AccelStepper stepper = AccelStepper(MOTOR_INTERFACE_TYPE, STEPPER_STEP_PIN, STEP
 
 
 void buttonISR() {
-  /** This Interrupt Service Routine increments the button0 state value when pressed */
+  /**
+    This Interrupt Service Routine increments the button0 state value when pressed
+  */
   if (buttonTimer == 0 || (millis() - buttonTimer) > BUTTON_DEBOUNCE_TIME) {
     buttonTimer = millis();
     control_mode = !control_mode;
@@ -127,10 +124,17 @@ void buttonISR() {
   }
 }
 void encoderISR() {
+  /**
+     This is a interrupt service routine to increrment the encoder pulse counter
+  */
   encoder_val++;
 }
 
 uint8_t getUltrasonicData() {
+  /**
+      This function reads the ultrasonic sensor data from the analog pin and does some elementary
+      signal processing and filtering
+  */
   // Clears the trigPin
   digitalWrite(ULTRASONIC_TRIGGER_PIN, LOW);
   delayMicroseconds(2);
@@ -143,33 +147,49 @@ uint8_t getUltrasonicData() {
   // Calculating the distance in cm
   int distance = (int) ((duration * 0.034 / 2.0));
   distance = min (60, distance);
-  moving_average_ultrasonic = (0.9) * moving_average_ultrasonic + 0.1 * distance;
-  return (uint8_t) map(moving_average_ultrasonic, 0, 60, 0, 255);
+  exponential_smoothing_filter_ultrasonic = (0.9) * exponential_smoothing_filter_ultrasonic + 0.1 * distance;
+  return (uint8_t) map(exponential_smoothing_filter_ultrasonic, 0, 60, 0, 255);
 }
 
 int getLightSensorData() {
+  /**
+    This function reads the ambient light sensor data from the analog pin and does some elementary
+    signal processing and filtering
+  */
   float reading = analogRead(LIGHT_SENSOR_PIN);
-  ambient_light_filter = 0.9 * ambient_light_filter + 0.1 * reading;
-  return ((int) ambient_light_filter > 13) ? 255 : 0;
+  exponential_smoothing_filter_ambient_light = 0.9 * exponential_smoothing_filter_ambient_light + 0.1 * reading;
+  return ((int) exponential_smoothing_filter_ambient_light > 13) ? 255 : 0;
 }
 
 int getPotData() {
+  /**
+     This function reads the potentiometer data from the analog pin
+  */
   return analogRead(POTENTIOMETER_PIN);
 }
 
 uint8_t getIRData() {
+  /**
+      This function reads the IR sensor data from the analog pin and does some elementary signal processing
+      and filtering
+  */
   float ir_data = (6762 / (analogRead(SHARP_IR_PIN) - 9)) - 4; // value from sensor * (5/1024)
   ir_data = (uint8_t )((ir_data < 10.0) ? 10.0 : (ir_data > 80.0) ? 80.0 : ir_data);
   if (ir_data == 255.0) {
-    ir_data = filterd_IR;
+    ir_data = exponential_smoothing_filter_IR;
   }
   ir_data = ir_data * 255 / 80;
-  filterd_IR = (uint8_t) (0.99 * filterd_IR + 0.01 * ir_data);
-  return filterd_IR;
+
+  // exponential smoothing filter
+  exponential_smoothing_filter_IR = (uint8_t) (0.99 * exponential_smoothing_filter_IR + 0.01 * ir_data);
+  return exponential_smoothing_filter_IR;
 }
 
 void actuate_motor( int dir , int pwm , int dir_pin1, int dir_pin2, int en_pin) {
-
+  /**
+        This function sets the low level pin voltages to drive the motor using the
+        L298N driver.
+  */
   switch (dir) {
     case -1:
       digitalWrite(dir_pin1, HIGH);
@@ -192,6 +212,10 @@ void actuate_motor( int dir , int pwm , int dir_pin1, int dir_pin2, int en_pin) 
 }
 
 void stopAndResetAllActuators() {
+  /**
+      This function stops all actuators and resets them to 0 state.
+  */
+
   // Reset the position to 0:
   stepper.setCurrentPosition(0);
 
@@ -206,13 +230,18 @@ void stopAndResetAllActuators() {
 
 
 void runStepper(int speed) {
+  /**
+    Move the stepper at the passed speed
+  */
   stepper.setSpeed(speed);
   stepper.runSpeed();
 }
 
 void moveStepper(int dir, int angle) {
+  /**
+    Move the stepper to the passed angle and in the specified direction
+  */
   int num_steps = (int) (395.0 * angle / 255.0);
-  //  int stepper_speed = ((num_steps > 0) ? 1 : -1) * DEFAULT_STEPPER_SPEED;\
   // Reset the position to 0:
   stepper.setCurrentPosition(0);
 
@@ -223,16 +252,25 @@ void moveStepper(int dir, int angle) {
 }
 
 void moveServo(int angle) {
+  /**
+    Move the servo to the passed angle in range [0,180]
+  */
   servo.write(min(180, max(angle, 4)));
 }
 
 void clearControlVarsPos() {
+  /**
+    Reset all the vars necessary for position control of DC motor
+  */
   encoder_val = 0;
   prev_encoder_val = 0;
   errSum = 0;
 }
 
 void clearControlVarsVelocity() {
+  /**
+    Reset all the vars necessary for rpm control of DC motor
+  */
   encoder_val = 0;
   prev_encoder_val = 0;
   errSum_vel = 0;
@@ -240,6 +278,9 @@ void clearControlVarsVelocity() {
 }
 
 void triggerActions(uint8_t rb[READ_BUFF_SIZE]) {
+  /**
+    This function parses the control input from the GUI to actuate a particular actuator
+  */
   switch ((int)rb[0]) {
     case 0:
       stopAndResetAllActuators();
@@ -277,6 +318,9 @@ void triggerActions(uint8_t rb[READ_BUFF_SIZE]) {
 
 
 void setStepperFromIR () {
+  /**
+    This function converts the IR value to actuate stepper motor
+  */
   if (getIRData() > 50) {
     //  if (!control_mode && ultrasonic_distance < 128) {
     runStepper(50);
@@ -284,6 +328,9 @@ void setStepperFromIR () {
 }
 
 void setDCMotorFromUltrasonic() {
+  /**
+    This function converts the ultrasonic value to actuate DC motor
+  */
   if (!control_mode && ultrasonic_distance < 128) {
     actuate_motor(1 , 255, DIR_PIN1, DIR_PIN2, MOTOR_ENABLE_PIN);
   } else {
@@ -327,7 +374,7 @@ void velocityPID() {
   if (start_dc_motor_velocity_control) {
     motor_rpm = (1.0) * (encoder_val - prev_encoder_val) / 1.0 * CLICKS_PER_ROTATION;
     motor_rpm = motor_rpm * 1000.0 * 60.0 / 1.0 * LOOP_DT;
-
+    motor_rpm_write = motor_rpm;
     prev_encoder_val = encoder_val;
 
     // simple pid calculations for velocity control
@@ -350,7 +397,8 @@ void populateWriteBuff(uint8_t (&wb)[WRITE_BUFF_SIZE]) {
   wb[1] = getIRData();
   wb[2] = ultrasonic_distance;
   wb[3] = getLightSensorData();
-  wb[4] = map((int) motor_rpm, 0, 40, 0, 255);
+  //  wb[4] = map((int) motor_rpm, 0, 40, 0, 255);
+  wb[4] = (uint8_t) motor_rpm_write;
 }
 
 void setup() {
@@ -364,10 +412,10 @@ void setup() {
   pinMode(DIR_PIN1, OUTPUT);
   pinMode(DIR_PIN2, OUTPUT);
   pinMode(MOTOR_ENABLE_PIN, OUTPUT);
-  
+
   attachInterrupt(digitalPinToInterrupt(ENCODER_PIN), encoderISR, RISING);
   attachInterrupt(digitalPinToInterrupt(CONTROL_BUTTON), buttonISR, RISING);
-  
+
   servo.attach(SERVO_PIN);
   stepper.setMaxSpeed(1000);
 
